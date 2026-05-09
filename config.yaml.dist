@@ -69,6 +69,9 @@ relay:
   # connections.
   https-port: 443
 
+  # включение proxy_protocol nginx
+  proxy-protocol: true
+
   # proxy-url is the optional port for upstream connections by the relay.
   # Format of the URL: [protocol://username:password@]host[:port]
   proxy-url: ""

@@ -22,6 +22,8 @@ type Relay struct {
 	// connections.
 	HTTPSPort uint16 `yaml:"https-port"`
 
+	ProxyProtocol bool `yaml:"proxy-protocol"`
+
 	// ProxyURL is the optional port for upstream connections by the relay.
 	// Format of the URL: [protocol://username:password@]host[:port]
 	ProxyURL string `yaml:"proxy-url"`
@@ -36,6 +38,7 @@ func (f *File) ToRelayConfig() (relayCfg *relay.Config, err error) {
 	relayCfg = &relay.Config{
 		ListenPort:    f.Relay.HTTPPort,
 		ListenPortTLS: f.Relay.HTTPSPort,
+		ProxyProtocol: f.Relay.ProxyProtocol,
 	}
 
 	relayCfg.ListenAddr, err = netip.ParseAddr(f.Relay.ListenAddr)

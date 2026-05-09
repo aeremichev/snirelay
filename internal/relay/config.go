@@ -25,4 +25,6 @@ type Config struct {
 	// If the incoming connection is not from this list, the connection will
 	// not be accepted.
 	RedirectDomains []string
+
+	ProxyProtocol bool // включение proxy_protocol nginx
 }

@@ -3,6 +3,7 @@ package relay
 
 import (
 	"fmt"
+	proxyproto "github.com/pires/go-proxyproto"
 	"io"
 	"net"
 	"runtime/debug"
@@ -54,17 +55,32 @@ type Server struct {
 	wg *sync.WaitGroup
 
 	started bool
+
+	useProxyProtocol bool
 }
 
 // type check.
 var _ io.Closer = (*Server)(nil)
 
+// createListener создаёт PROXY-совместимый слушатель, если включена опция
+func (s *Server) createListener(addr *net.TCPAddr, useProxyProtocol bool) (net.Listener, error) {
+	plainListener, err := net.ListenTCP("tcp", addr)
+	if err != nil {
+		return nil, err
+	}
+	if useProxyProtocol {
+		return &proxyproto.Listener{Listener: plainListener}, nil
+	}
+	return plainListener, nil
+}
+
 // NewServer creates a new instance of *Server.
 func NewServer(cfg *Config) (s *Server, err error) {
 	s = &Server{
-		redirectDomains: cfg.RedirectDomains,
-		wg:              &sync.WaitGroup{},
-		mu:              &sync.Mutex{},
+		redirectDomains:  cfg.RedirectDomains,
+		wg:               &sync.WaitGroup{},
+		mu:               &sync.Mutex{},
+		useProxyProtocol: cfg.ProxyProtocol,
 	}
 
 	if cfg.ProxyURL != nil {
@@ -122,13 +138,15 @@ func (s *Server) Start() (err error) {
 		return fmt.Errorf("server is already started")
 	}
 
-	s.listenerPlain, err = net.ListenTCP("tcp", s.listenAddrPlain)
+	//s.listenerPlain, err = net.ListenTCP("tcp", s.listenAddrPlain)
+	s.listenerPlain, err = s.createListener(s.listenAddrPlain, s.useProxyProtocol)
 	if err != nil {
 		return fmt.Errorf("failed to serve plain HTTP: %w", err)
 	}
 	s.plainAddr = s.listenerPlain.Addr()
 
-	s.listenerTLS, err = net.ListenTCP("tcp", s.listenAddrTLS)
+	//s.listenerTLS, err = net.ListenTCP("tcp", s.listenAddrTLS)
+	s.listenerTLS, err = s.createListener(s.listenAddrTLS, s.useProxyProtocol)
 	if err != nil {
 		return fmt.Errorf("failed to serve TLS: %w", err)
 	}
@@ -141,6 +159,7 @@ func (s *Server) Start() (err error) {
 
 	s.started = true
 
+	log.Info("relay: useProxyProtocol %s", s.useProxyProtocol)
 	log.Info("relay: listening for plain HTTP on %s", s.listenerPlain.Addr())
 	log.Info("relay: listening for TLS on %s", s.listenerTLS.Addr())
 
